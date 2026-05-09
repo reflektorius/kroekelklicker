@@ -1,0 +1,21 @@
+{
+  "name": "TSV Krökel Klicker",
+  "short_name": "KrökelKlicker",
+  "description": "Statistik-Tool für Kicker-Training",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#4cc9f0",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/fluency/192/000000/football.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://img.icons8.com/fluency/512/000000/football.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

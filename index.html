@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>TSV Krökel Klicker</title>
+	<link rel="manifest" href="manifest.json">
+	<meta name="theme-color" content="#4cc9f0">
+	<link rel="apple-touch-icon" href="https://img.icons8.com/fluency/192/000000/football.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">
+	if ('serviceWorker' in navigator) {
+	    navigator.serviceWorker.register('sw.js');
+	}	
+	</script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 15px;
+            gap: 15px;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 2px solid #333;
+            margin-bottom: 10px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            height: 40px;
+            width: auto;
+        }
+
+        .header-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+
+        .btn-undo {
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5rem;
+            padding: 10px 0;
+            border-bottom: 2px solid #333;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            min-height: 70px;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+            opacity: 0.9;
+        }
+
+        .btn-red {
+            background: linear-gradient(145deg, #e63946, #c1121f);
+            color: white;
+        }
+
+        .btn-green {
+            background: linear-gradient(145deg, #2d6a4f, #1b4332);
+            color: white;
+        }
+
+        .btn-gray {
+            background: linear-gradient(145deg, #6c757d, #495057);
+            color: white;
+        }
+
+        .main-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .main-stack .btn {
+            flex: 1;
+            font-size: 1.4rem;
+        }
+
+        .selection-group {
+            background: #2a2a4a;
+            border-radius: 12px;
+            padding: 10px;
+        }
+
+        .selection-label {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .selection-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .selection-btn {
+            flex: 1;
+            min-width: 60px;
+            padding: 12px 8px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: #333;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .selection-btn.selected {
+            border-color: #4cc9f0;
+            background: #4cc9f0;
+            color: #1a1a2e;
+            font-weight: bold;
+        }
+
+        /* Toast Styles */
+        #toast {
+            visibility: hidden;
+            min-width: 200px;
+            background-color: #4cc9f0;
+            color: #1a1a2e;
+            text-align: center;
+            border-radius: 10px;
+            padding: 12px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 1.5s;
+        }
+
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+        /* Stats & Log Styles (unverändert) */
+        .stats-container { overflow-y: auto; flex: 1; }
+        .chart-section { background: #2a2a4a; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .chart-title { font-size: 1rem; font-weight: bold; color: #4cc9f0; margin-bottom: 10px; text-align: center; }
+        .chart-wrapper { position: relative; width: 100%; max-width: 320px; height: 320px; margin: 0 auto; }
+        .error-stats { background: #2a2a4a; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .error-stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #444; }
+        .error-value { font-weight: bold; color: #f72585; }
+        .log-container { background: #2a2a4a; border-radius: 12px; padding: 15px; max-height: 300px; overflow-y: auto; }
+        .log-entry { padding: 10px; margin-bottom: 8px; background: #333; border-radius: 8px; font-size: 0.95rem; border-left: 4px solid #4cc9f0; }
+        .log-empty { text-align: center; color: #666; padding: 40px; font-style: italic; }
+        .log-actions { display: flex; gap: 10px; margin-top: 15px; }
+    </style>
+</head>
+<body onload="loadLog()">
+
+    <div id="toast">Eintrag gespeichert!</div>
+
+    <div id="home" class="screen active">
+        <div class="header">
+            <div class="header-left">
+                <img src="logo.png" alt="Logo" class="header-logo">
+                <span class="header-title">TSV Krökel Klicker</span>
+            </div>
+            <button class="btn-undo" onclick="undoLastEvent()">↩️ Undo</button>
+        </div>
+        <div class="main-stack">
+            <button class="btn btn-red" onclick="showScreen('menu1')" style="font-size: 2rem;">⑤ 🛡️</button>
+            <button class="btn btn-green" onclick="showScreen('menu2')" style="font-size: 2rem;">⑤ 🎯</button>
+            <button class="btn btn-green" onclick="showScreen('menu4')" style="font-size: 2rem;">③ 🎯</button>
+            <button class="btn btn-gray" onclick="showScreen('menu5')">📊 Auswertung</button>
+        </div>
+    </div>
+
+    <div id="menu1" class="screen">
+        <h1>⑤ 🛡️</h1>
+        <div class="menu-content" style="display: flex; flex-direction: column; gap: 15px; flex: 1;">
+            <button class="btn btn-green" onclick="logEvent('Pass geblockt (5)')" style="flex:1">✓ Block</button>
+            <button class="btn btn-red" onclick="logEvent('Pass nicht geblockt (5)')" style="flex:1">✗ Kein Block</button>
+            <button class="btn btn-gray" onclick="showScreen('home')">← Abbrechen</button>
+        </div>
+    </div>
+
+    <div id="menu2" class="screen">
+        <h1>⑤ 🎯</h1>
+        <button class="btn btn-red" onclick="logEvent('Eigenfehler (5)')" style="min-height: 60px;">⚠ Eigenfehler</button>
+        <div class="selection-group">
+            <div class="selection-label">Puppe</div>
+            <div class="selection-row" id="figur5">
+                <button class="selection-btn" onclick="select('figur5', '1')">1</button>
+                <button class="selection-btn" onclick="select('figur5', '2')">2</button>
+                <button class="selection-btn" onclick="select('figur5', '3')">3</button>
+                <button class="selection-btn" onclick="select('figur5', '4')">4</button>
+                <button class="selection-btn" onclick="select('figur5', '5')">5</button>
+            </div>
+        </div>
+        <div class="selection-group">
+            <div class="selection-label">Passmuster</div>
+            <div class="selection-row" id="passmuster5">
+                <button class="selection-btn" onclick="select('passmuster5', 'Bande')">Bande</button>
+                <button class="selection-btn" onclick="select('passmuster5', 'Feld')">Feld</button>
+                <button class="selection-btn" onclick="select('passmuster5', 'Sonstige')">Sonstige</button>
+            </div>
+        </div>
+        <div class="selection-group">
+            <div class="selection-label">Ergebnis</div>
+            <div class="selection-row" id="ergebnis5">
+                <button class="selection-btn" onclick="select('ergebnis5', 'Erfolg')">Erfolg</button>
+                <button class="selection-btn" onclick="select('ergebnis5', 'Geblockt')">Geblockt</button>
+                <button class="selection-btn" onclick="select('ergebnis5', 'Nicht gefangen')">Nicht gefangen</button>
+                <button class="selection-btn" onclick="select('ergebnis5', 'Tor')">Tor</button>
+            </div>
+        </div>
+        <button class="btn btn-gray" onclick="resetAndGoHome('menu2')">← Abbrechen</button>
+    </div>
+
+    <div id="menu4" class="screen">
+        <h1>③ 🎯</h1>
+        <button class="btn btn-red" onclick="logEvent('Eigenfehler (3)')" style="min-height: 60px;">⚠ Eigenfehler</button>
+        <div class="selection-group">
+            <div class="selection-label">Schuss</div>
+            <div class="selection-row" id="schuss3">
+                <button class="selection-btn" onclick="select('schuss3', 'Jet')">Jet</button>
+                <button class="selection-btn" onclick="select('schuss3', 'Abroller')">Abroller</button>
+                <button class="selection-btn" onclick="select('schuss3', 'Zieher')">Zieher</button>
+                <button class="selection-btn" onclick="select('schuss3', 'Sonstige')">Sonstige</button>
+            </div>
+        </div>
+        <div class="selection-group">
+            <div class="selection-label">Richtung</div>
+            <div class="selection-row" id="richtung3">
+                <button class="selection-btn" onclick="select('richtung3', 'Links')">Links</button>
+                <button class="selection-btn" onclick="select('richtung3', 'Mitte')">Mitte</button>
+                <button class="selection-btn" onclick="select('richtung3', 'Rechts')">Rechts</button>
+            </div>
+        </div>
+        <div class="selection-group">
+            <div class="selection-label">Ergebnis</div>
+            <div class="selection-row" id="ergebnis3">
+                <button class="selection-btn" onclick="select('ergebnis3', 'Tor')">Tor</button>
+                <button class="selection-btn" onclick="select('ergebnis3', 'Gehalten')">Gehalten</button>
+                <button class="selection-btn" onclick="select('ergebnis3', 'Vorbei')">Vorbei</button>
+            </div>
+        </div>
+        <button class="btn btn-gray" onclick="resetAndGoHome('menu4')">← Abbrechen</button>
+    </div>
+
+    <div id="menu5" class="screen">
+        <h1>📊 Auswertung</h1>
+        <div class="stats-container">
+            <div class="chart-section" id="chart1Section">
+                <div class="chart-title">Blockquote auf der 5</div>
+                <div class="chart-wrapper"><canvas id="chart1"></canvas></div>
+            </div>
+            <div class="chart-section" id="chart2Section">
+                <div class="chart-title">Mitte: Verteilung auf Puppen</div>
+                <div class="chart-wrapper"><canvas id="chart2"></canvas></div>
+            </div>
+            <div id="passmusterCharts"></div>
+            <div id="angriffCharts"></div>
+            <div class="error-stats" id="errorStats"></div>
+            <div class="log-section-title">📋 Protokoll</div>
+            <div class="log-container" id="logContainer"></div>
+        </div>
+        <div class="log-actions">
+            <button class="btn btn-clear btn-red" onclick="clearLog()" style="flex:1; min-height: 50px;">🗑 Löschen</button>
+            <button class="btn btn-export btn-gray" onclick="exportLog()" style="flex:1; min-height: 50px;">📤 Export</button>
+        </div>
+        <button class="btn btn-gray" onclick="showScreen('home')" style="margin-top: 10px;">← Zurück</button>
+    </div>
+
+    <script>
+        let log = [];
+        let charts = {};
+        let selections = { figur5: null, passmuster5: null, ergebnis5: null, schuss3: null, richtung3: null, ergebnis3: null };
+        const chartColors = ['#4cc9f0', '#f72585', '#7209b7', '#3a0ca3', '#4361ee', '#4895ef', '#560bad', '#480ca8', '#b5179e', '#ff006e'];
+
+        function showToast(text) {
+            const t = document.getElementById("toast");
+            if(text) t.textContent = text;
+            t.className = "show";
+            setTimeout(() => { t.className = t.className.replace("show", ""); }, 2000);
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            if (screenId === 'menu5') { renderStats(); renderLog(); }
+        }
+
+        function logEvent(text) {
+            const timestamp = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            log.push({ time: timestamp, text: text });
+            saveLog();
+            showToast("Eintrag gespeichert!");
+            showScreen('home');
+        }
+
+        function undoLastEvent() {
+            if (log.length > 0) {
+                const removed = log.pop();
+                saveLog();
+                showToast("Rückgängig: " + removed.text.substring(0, 15) + "...");
+            } else {
+                showToast("Nichts zum Rückgängig machen");
+            }
+        }
+
+        function select(group, value) {
+            selections[group] = value;
+            document.querySelectorAll(`#${group} .selection-btn`).forEach(btn => {
+                btn.classList.toggle('selected', btn.textContent === value);
+            });
+            checkAutoConfirm();
+        }
+
+        function checkAutoConfirm() {
+            if (selections.figur5 && selections.passmuster5 && selections.ergebnis5) {
+                logEvent(`Puppe ${selections.figur5} mit ${selections.passmuster5} => ${selections.ergebnis5} (5)`);
+                resetSelections('menu2');
+            } else if (selections.schuss3 && selections.richtung3 && selections.ergebnis3) {
+                logEvent(`${selections.schuss3} nach ${selections.richtung3} => ${selections.ergebnis3} (3)`);
+                resetSelections('menu4');
+            }
+        }
+
+        function resetSelections(menu) {
+            const keys = menu === 'menu2' ? ['figur5', 'passmuster5', 'ergebnis5'] : ['schuss3', 'richtung3', 'ergebnis3'];
+            keys.forEach(k => selections[k] = null);
+            document.querySelectorAll(`#${menu} .selection-btn`).forEach(btn => btn.classList.remove('selected'));
+        }
+
+        function resetAndGoHome(menu) { resetSelections(menu); showScreen('home'); }
+
+        function saveLog() { localStorage.setItem('kroekelLog', JSON.stringify(log)); }
+
+        function loadLog() {
+            const saved = localStorage.getItem('kroekelLog');
+            if (saved) { log = JSON.parse(saved); }
+        }
+
+        function clearLog() {
+            if (log.length > 0 && confirm('Alle Einträge löschen?')) {
+                log = []; saveLog(); renderStats(); renderLog(); showToast("Gelöscht!");
+            }
+        }
+
+        // --- STATISTIK & ANALYSE (Logik aus der vorherigen Version) ---
+        function analyzeLog() {
+            const data = {
+                blocks: { 'Block': 0, 'Kein Block': 0 },
+                puppen: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+                passmuster: { 'Bande': { 'Erfolg': 0, 'Geblockt': 0, 'Nicht gefangen': 0, 'Tor': 0 }, 'Feld': { 'Erfolg': 0, 'Geblockt': 0, 'Nicht gefangen': 0, 'Tor': 0 }, 'Sonstige': { 'Erfolg': 0, 'Geblockt': 0, 'Nicht gefangen': 0, 'Tor': 0 } },
+                schussRichtungErgebnis: {}, eigenfehler5: 0, eigenfehler3: 0, gesamt5Ang: 0, gesamt3Ang: 0
+            };
+            log.forEach(entry => {
+                const text = entry.text;
+                if (text.includes('Pass geblockt (5)')) data.blocks['Block']++;
+                else if (text.includes('Pass nicht geblockt (5)')) data.blocks['Kein Block']++;
+                else if (text.includes('Eigenfehler (5)')) { data.eigenfehler5++; data.gesamt5Ang++; }
+                else if (text.includes('Eigenfehler (3)')) { data.eigenfehler3++; data.gesamt3Ang++; }
+                const match5 = text.match(/Puppe (\d) mit (Bande|Feld|Sonstige) => (Erfolg|Geblockt|Nicht gefangen|Tor)/);
+                if (match5) { data.gesamt5Ang++; data.puppen[match5[1]]++; data.passmuster[match5[2]][match5[3]]++; }
+                const match3 = text.match(/(Jet|Abroller|Zieher|Sonstige) nach (Links|Mitte|Rechts) => (Tor|Gehalten|Vorbei)/);
+                if (match3) { data.gesamt3Ang++; const kombi = `${match3[1]} ${match3[2]}`; if (!data.schussRichtungErgebnis[kombi]) data.schussRichtungErgebnis[kombi] = { 'Tor': 0, 'Gehalten': 0, 'Vorbei': 0 }; data.schussRichtungErgebnis[kombi][match3[3]]++; }
+            });
+            return data;
+        }
+
+        function createPieChart(canvasId, labels, values) {
+            if (charts[canvasId]) charts[canvasId].destroy();
+            const total = values.reduce((a, b) => a + b, 0);
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            charts[canvasId] = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels.map((l, i) => `${l}: ${values[i]} (${total > 0 ? Math.round((values[i]/total)*100) : 0}%)`),
+                    datasets: [{ data: values, backgroundColor: chartColors.slice(0, values.length), borderColor: '#1a1a2e', borderWidth: 2 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { size: 11 }, boxWidth: 12 } } } }
+            });
+        }
+
+        function renderStats() {
+            const data = analyzeLog();
+            Object.keys(charts).forEach(k => { if (k.startsWith('chartPm_') || k.startsWith('chartAng_')) { charts[k].destroy(); delete charts[k]; } });
+            
+            let pmHTML = ''; let pmDraw = [];
+            ['Bande', 'Feld', 'Sonstige'].forEach(pm => {
+                const labels = []; const values = [];
+                ['Erfolg', 'Geblockt', 'Nicht gefangen', 'Tor'].forEach(erg => { if (data.passmuster[pm][erg] > 0) { labels.push(erg); values.push(data.passmuster[pm][erg]); } });
+                if (values.length > 0) { const id = `chartPm_${pm}`; pmHTML += `<div class="chart-section"><div class="chart-title">Mitte: ${pm}</div><div class="chart-wrapper"><canvas id="${id}"></canvas></div></div>`; pmDraw.push({ id, labels, values }); }
+            });
+            document.getElementById('passmusterCharts').innerHTML = pmHTML;
+
+            let angHTML = ''; let angDraw = [];
+            Object.keys(data.schussRichtungErgebnis).forEach(k => {
+                const labels = []; const values = [];
+                ['Tor', 'Gehalten', 'Vorbei'].forEach(erg => { if (data.schussRichtungErgebnis[k][erg] > 0) { labels.push(erg); values.push(data.schussRichtungErgebnis[k][erg]); } });
+                const id = `chartAng_${k.replace(/\s+/g, '')}`; angHTML += `<div class="chart-section"><div class="chart-title">Angriff: ${k}</div><div class="chart-wrapper"><canvas id="${id}"></canvas></div></div>`; angDraw.push({ id, labels, values });
+            });
+            document.getElementById('angriffCharts').innerHTML = angHTML;
+
+            if (data.blocks['Block'] + data.blocks['Kein Block'] > 0) { document.getElementById('chart1Section').style.display='block'; createPieChart('chart1', ['Block', 'Kein Block'], [data.blocks['Block'], data.blocks['Kein Block']]); } else document.getElementById('chart1Section').style.display='none';
+            if (Object.values(data.puppen).reduce((a,b)=>a+b,0) > 0) { document.getElementById('chart2Section').style.display='block'; createPieChart('chart2', ['P1', 'P2', 'P3', 'P4', 'P5'], Object.values(data.puppen)); } else document.getElementById('chart2Section').style.display='none';
+            
+            pmDraw.forEach(d => createPieChart(d.id, d.labels, d.values));
+            angDraw.forEach(d => createPieChart(d.id, d.labels, d.values));
+
+            const fMP = data.gesamt5Ang > 0 ? Math.round((data.eigenfehler5/data.gesamt5Ang)*100) : 0;
+            const fSP = data.gesamt3Ang > 0 ? Math.round((data.eigenfehler3/data.gesamt3Ang)*100) : 0;
+            document.getElementById('errorStats').innerHTML = `<div class="error-stat-row"><span>Fehlerquote Mitte</span><span class="error-value">${data.eigenfehler5} (${fMP}%)</span></div><div class="error-stat-row"><span>Fehlerquote Sturm</span><span class="error-value">${data.eigenfehler3} (${fSP}%)</span></div>`;
+        }
+
+        function renderLog() {
+            const c = document.getElementById('logContainer');
+            if (log.length === 0) { c.innerHTML = '<div class="log-empty">Noch keine Einträge</div>'; return; }
+            c.innerHTML = log.map(e => `<div class="log-entry"><strong>${e.time}</strong> — ${e.text}</div>`).reverse().join('');
+        }
+
+        function exportLog() {
+            if (log.length === 0) return;
+            const text = log.map(e => `${e.time}\t${e.text}`).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = `kicker-stats-${new Date().toISOString().slice(0,10)}.txt`; a.click();
+        }
+    </script>
+</body>
+</html>
