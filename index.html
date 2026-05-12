@@ -243,16 +243,6 @@
         <h1>⑤ 🎯</h1>
         <button class="btn btn-red" onclick="logEvent('Eigenfehler (5)')" style="min-height: 60px;">⚠ Eigenfehler</button>
         <div class="selection-group">
-            <div class="selection-label">Puppe</div>
-            <div class="selection-row" id="figur5">
-                <button class="selection-btn" onclick="select('figur5', '1')">1</button>
-                <button class="selection-btn" onclick="select('figur5', '2')">2</button>
-                <button class="selection-btn" onclick="select('figur5', '3')">3</button>
-                <button class="selection-btn" onclick="select('figur5', '4')">4</button>
-                <button class="selection-btn" onclick="select('figur5', '5')">5</button>
-            </div>
-        </div>
-        <div class="selection-group">
             <div class="selection-label">Passmuster</div>
             <div class="selection-row" id="passmuster5">
                 <button class="selection-btn" onclick="select('passmuster5', 'Bande')">Bande</button>
@@ -310,10 +300,6 @@
                 <div class="chart-title">Blockquote auf der 5</div>
                 <div class="chart-wrapper"><canvas id="chart1"></canvas></div>
             </div>
-            <div class="chart-section" id="chart2Section">
-                <div class="chart-title">Mitte: Verteilung auf Puppen</div>
-                <div class="chart-wrapper"><canvas id="chart2"></canvas></div>
-            </div>
             <div id="passmusterCharts"></div>
             <div id="angriffCharts"></div>
             <div class="error-stats" id="errorStats"></div>
@@ -330,7 +316,7 @@
     <script>
         let log = [];
         let charts = {};
-        let selections = { figur5: null, passmuster5: null, ergebnis5: null, schuss3: null, richtung3: null, ergebnis3: null };
+        let selections = { passmuster5: null, ergebnis5: null, schuss3: null, richtung3: null, ergebnis3: null };
         const chartColors = ['#4cc9f0', '#f72585', '#7209b7', '#3a0ca3', '#4361ee', '#4895ef', '#560bad', '#480ca8', '#b5179e', '#ff006e'];
 
         function showToast(text) {
@@ -373,8 +359,8 @@
         }
 
         function checkAutoConfirm() {
-            if (selections.figur5 && selections.passmuster5 && selections.ergebnis5) {
-                logEvent(`Puppe ${selections.figur5} mit ${selections.passmuster5} => ${selections.ergebnis5} (5)`);
+            if (selections.passmuster5 && selections.ergebnis5) {
+                logEvent(`${selections.passmuster5} => ${selections.ergebnis5} (5)`);
                 resetSelections('menu2');
             } else if (selections.schuss3 && selections.richtung3 && selections.ergebnis3) {
                 logEvent(`${selections.schuss3} nach ${selections.richtung3} => ${selections.ergebnis3} (3)`);
@@ -383,7 +369,7 @@
         }
 
         function resetSelections(menu) {
-            const keys = menu === 'menu2' ? ['figur5', 'passmuster5', 'ergebnis5'] : ['schuss3', 'richtung3', 'ergebnis3'];
+            const keys = menu === 'menu2' ? ['passmuster5', 'ergebnis5'] : ['schuss3', 'richtung3', 'ergebnis3'];
             keys.forEach(k => selections[k] = null);
             document.querySelectorAll(`#${menu} .selection-btn`).forEach(btn => btn.classList.remove('selected'));
         }
@@ -407,7 +393,6 @@
         function analyzeLog() {
             const data = {
                 blocks: { 'Block': 0, 'Kein Block': 0 },
-                puppen: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
                 passmuster: { 'Bande': { 'Erfolg': 0, 'Geblockt': 0, 'Nicht gefangen': 0, 'Tor': 0 }, 'Feld': { 'Erfolg': 0, 'Geblockt': 0, 'Nicht gefangen': 0, 'Tor': 0 }, 'Sonstige': { 'Erfolg': 0, 'Geblockt': 0, 'Nicht gefangen': 0, 'Tor': 0 } },
                 schussRichtungErgebnis: {}, eigenfehler5: 0, eigenfehler3: 0, gesamt5Ang: 0, gesamt3Ang: 0
             };
@@ -417,8 +402,8 @@
                 else if (text.includes('Pass nicht geblockt (5)')) data.blocks['Kein Block']++;
                 else if (text.includes('Eigenfehler (5)')) { data.eigenfehler5++; data.gesamt5Ang++; }
                 else if (text.includes('Eigenfehler (3)')) { data.eigenfehler3++; data.gesamt3Ang++; }
-                const match5 = text.match(/Puppe (\d) mit (Bande|Feld|Sonstige) => (Erfolg|Geblockt|Nicht gefangen|Tor)/);
-                if (match5) { data.gesamt5Ang++; data.puppen[match5[1]]++; data.passmuster[match5[2]][match5[3]]++; }
+                const match5 = text.match(/(Bande|Feld|Sonstige) => (Erfolg|Geblockt|Nicht gefangen|Tor) \(5\)/);
+                if (match5) { data.gesamt5Ang++; data.passmuster[match5[1]][match5[2]]++; }
                 const match3 = text.match(/(Jet|Abroller|Zieher|Sonstige) nach (Links|Mitte|Rechts) => (Tor|Gehalten|Vorbei)/);
                 if (match3) { data.gesamt3Ang++; const kombi = `${match3[1]} ${match3[2]}`; if (!data.schussRichtungErgebnis[kombi]) data.schussRichtungErgebnis[kombi] = { 'Tor': 0, 'Gehalten': 0, 'Vorbei': 0 }; data.schussRichtungErgebnis[kombi][match3[3]]++; }
             });
@@ -447,7 +432,7 @@
             ['Bande', 'Feld', 'Sonstige'].forEach(pm => {
                 const labels = []; const values = [];
                 ['Erfolg', 'Geblockt', 'Nicht gefangen', 'Tor'].forEach(erg => { if (data.passmuster[pm][erg] > 0) { labels.push(erg); values.push(data.passmuster[pm][erg]); } });
-                if (values.length > 0) { const id = `chartPm_${pm}`; pmHTML += `<div class="chart-section"><div class="chart-title">Mitte: ${pm}</div><div class="chart-wrapper"><canvas id="${id}"></canvas></div></div>`; pmDraw.push({ id, labels, values }); }
+                if (values.length > 0) { const id = `chartPm_${pm}`; pmHTML += `<div class="chart-section"><div class="chart-title">Mitte: ${pm}</div><div class="chart-wrapper"><canvas id="${id}"></canvas></div></div>`; pmDraw.push({ id: id, labels: labels, values: values }); }
             });
             document.getElementById('passmusterCharts').innerHTML = pmHTML;
 
@@ -455,19 +440,19 @@
             Object.keys(data.schussRichtungErgebnis).forEach(k => {
                 const labels = []; const values = [];
                 ['Tor', 'Gehalten', 'Vorbei'].forEach(erg => { if (data.schussRichtungErgebnis[k][erg] > 0) { labels.push(erg); values.push(data.schussRichtungErgebnis[k][erg]); } });
-                const id = `chartAng_${k.replace(/\s+/g, '')}`; angHTML += `<div class="chart-section"><div class="chart-title">Angriff: ${k}</div><div class="chart-wrapper"><canvas id="${id}"></canvas></div></div>`; angDraw.push({ id, labels, values });
+                const id = `chartAng_${k.replace(/\s+/g, '')}`; angHTML += `<div class="chart-section"><div class="chart-title">Angriff: ${k}</div><div class="chart-wrapper"><canvas id="${id}"></canvas></div></div>`; angDraw.push({ id: id, labels: labels, values: values });
             });
             document.getElementById('angriffCharts').innerHTML = angHTML;
 
-            if (data.blocks['Block'] + data.blocks['Kein Block'] > 0) { document.getElementById('chart1Section').style.display='block'; createPieChart('chart1', ['Block', 'Kein Block'], [data.blocks['Block'], data.blocks['Kein Block']]); } else document.getElementById('chart1Section').style.display='none';
-            if (Object.values(data.puppen).reduce((a,b)=>a+b,0) > 0) { document.getElementById('chart2Section').style.display='block'; createPieChart('chart2', ['P1', 'P2', 'P3', 'P4', 'P5'], Object.values(data.puppen)); } else document.getElementById('chart2Section').style.display='none';
+            if (data.blocks['Block'] + data.blocks['Kein Block'] > 0) { document.getElementById('chart1Section').style.display='block'; createPieChart('chart1', ['Block', 'Kein Block'], [data.blocks['Block'], data.blocks['Kein Block']]); }
+            else { document.getElementById('chart1Section').style.display='none'; }
             
             pmDraw.forEach(d => createPieChart(d.id, d.labels, d.values));
             angDraw.forEach(d => createPieChart(d.id, d.labels, d.values));
 
             const fMP = data.gesamt5Ang > 0 ? Math.round((data.eigenfehler5/data.gesamt5Ang)*100) : 0;
             const fSP = data.gesamt3Ang > 0 ? Math.round((data.eigenfehler3/data.gesamt3Ang)*100) : 0;
-            document.getElementById('errorStats').innerHTML = `<div class="error-stat-row"><span>Fehlerquote Mitte</span><span class="error-value">${data.eigenfehler5} (${fMP}%)</span></div><div class="error-stat-row"><span>Fehlerquote Sturm</span><span class="error-value">${data.eigenfehler3} (${fSP}%)</span></div>`;
+            document.getElementById('errorStats').innerHTML = `<div class="error-stat-row"><span>Fehlerquote Mitte</span><span class="error-value">${data.eigenfehler5} (${fMP}%)</span></div><div class="error-stat-row"><span>Fehlerquote Angriff</span><span class="error-value">${data.eigenfehler3} (${fSP}%)</span></div>`;
         }
 
         function renderLog() {
