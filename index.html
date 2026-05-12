@@ -317,7 +317,25 @@
         let log = [];
         let charts = {};
         let selections = { passmuster5: null, ergebnis5: null, schuss3: null, richtung3: null, ergebnis3: null };
-        const chartColors = ['#4cc9f0', '#f72585', '#7209b7', '#3a0ca3', '#4361ee', '#4895ef', '#560bad', '#480ca8', '#b5179e', '#ff006e'];
+
+        // Color mapping for different outcomes
+        const colorMap = {
+            // ⑤ 🛡️ - Defense
+            'Block': '#2d6a4f',           // Positive: Green
+            'Kein Block': '#e63946',      // Negative: Red
+            // ⑤ 🎯 - Attack (Pass)
+            'Erfolg': '#2d6a4f',          // Positive: Green
+            'Tor': '#2d6a4f',             // Positive: Green
+            'Geblockt': '#e63946',        // Negative: Red
+            'Nicht gefangen': '#d4a574',  // Neutral: Yellow/Orange
+            // ③ 🎯 - Attack (Shot)
+            'Gehalten': '#d4a574',        // Neutral: Yellow/Orange
+            'Vorbei': '#e63946'           // Negative: Red
+        };
+
+        function getColor(label) {
+            return colorMap[label] || '#4cc9f0';
+        }
 
         function showToast(text) {
             const t = document.getElementById("toast");
@@ -389,7 +407,7 @@
             }
         }
 
-        // --- STATISTIK & ANALYSE (Logik aus der vorherigen Version) ---
+        // --- STATISTIK & ANALYSE ---
         function analyzeLog() {
             const data = {
                 blocks: { 'Block': 0, 'Kein Block': 0 },
@@ -414,11 +432,12 @@
             if (charts[canvasId]) charts[canvasId].destroy();
             const total = values.reduce((a, b) => a + b, 0);
             const ctx = document.getElementById(canvasId).getContext('2d');
+            const backgroundColor = labels.map(l => getColor(l));
             charts[canvasId] = new Chart(ctx, {
                 type: 'pie',
                 data: {
                     labels: labels.map((l, i) => `${l}: ${values[i]} (${total > 0 ? Math.round((values[i]/total)*100) : 0}%)`),
-                    datasets: [{ data: values, backgroundColor: chartColors.slice(0, values.length), borderColor: '#1a1a2e', borderWidth: 2 }]
+                    datasets: [{ data: values, backgroundColor: backgroundColor, borderColor: '#1a1a2e', borderWidth: 2 }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { size: 11 }, boxWidth: 12 } } } }
             });
